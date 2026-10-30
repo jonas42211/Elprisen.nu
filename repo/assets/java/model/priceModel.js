@@ -1,5 +1,4 @@
 const priceAreas = ["DK1", "DK2"];
-let todayPrices;
 
 function getDatePath(date) {
     const parts = Object.fromEntries(new Intl.DateTimeFormat("en-GB", {
@@ -12,8 +11,19 @@ function getDatePath(date) {
     return `${parts.year}/${parts.month}-${parts.day}`;
 }
 
-export async function fetchTodayPrices(date = new Date()) {
-    const datePath = getDatePath(date);
+function toDate(value) {
+    if (value instanceof Date) return value;
+
+    const date = new Date(`${value}T12:00:00Z`);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(value) || Number.isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== value) {
+        throw new Error("Vælg en gyldig dato for prisopslaget.");
+    }
+
+    return date;
+}
+
+export async function fetchPricesForDate(value = new Date()) {
+    const datePath = getDatePath(toDate(value));
     const zones = await Promise.all(priceAreas.map(async (area) => {
         const response = await fetch(`https://www.elprisenligenu.dk/api/v1/prices/${datePath}_${area}.json`);
 
@@ -34,10 +44,5 @@ export async function fetchTodayPrices(date = new Date()) {
         return { id: area, prices };
     }));
 
-    todayPrices = { dayLabel: datePath.replace("/", "-"), zones };
-    return todayPrices;
-}
-
-export function getTodayPrices() {
-    return todayPrices;
+    return { dayLabel: datePath.replace("/", "-"), zones };
 }
